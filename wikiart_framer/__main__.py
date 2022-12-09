@@ -13,14 +13,20 @@ wikiart_framer.box.Box()
 if __name__ == "__main__":
     # sys.exit(gallery_dl.main())
     print("Ottengo nuova arte")
-    url = wikiart_framer.ottieniArte()
-    file = wikiart_framer.downloadImage(url)
+    url = wikiart_framer.ottieni_arte()
+    file = wikiart_framer.download_image(url)
 
-    filename = str(file.filename)
-    filepath = str(file.path)
+    FILE_NAME = str(file.filename)
+    FILE_PATH = str(file.path)
 
-    if filepath != "":
-        wikiart_framer.processImage(filepath, filename)
+    screen_box = wikiart_framer.box.Box()
+    screen_box.set_width(480)
+    screen_box.set_height(234)
+
+    print("Schermo - " + str(screen_box))
+
+    if FILE_PATH != "":
+        wikiart_framer.process_image(FILE_PATH, FILE_NAME, screen_box)
         sys.exit(0)
     else:
         print("Nessun persorso disponibile")

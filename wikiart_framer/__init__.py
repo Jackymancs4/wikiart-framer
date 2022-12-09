@@ -1,127 +1,134 @@
+import glob
 import gallery_dl
 import requests
 from PIL import Image, ImageFilter
-import glob
 
 from . import box
 
 
-def processImage(filepath, filename):
-    """Download images into appropriate directory/filename locations
+def process_image(filepath: str, filename: str, screen_box: box.Box) -> None:
+    """_summary_
 
-    Args
-    ----------
-    filepath : str
-        The file location of the spreadsheet
-    filename : strs
-        A flag used to print the columns to the console (default is
-        False)
+    Args:
+        filepath (str): _description_
+        filename (str): _description_
+        screen_box (box.Box): _description_
     """
 
-    screen_width = 480 * 2
-    screen_height = 234 * 2
+    screen_box.scale(2)
+    print("Schermo scalato - " + str(screen_box))
 
     cgratio = 14.0 / 225.0 * 2
-    screen_ratio = screen_width / screen_height
 
     print("Opening file: " + filepath)
 
     # Apri immagine
-    OriImage = Image.open(filepath)
+    original_image = Image.open(filepath)
 
-    image_ratio = OriImage.width / OriImage.height
+    image_box = box.Box()
+    image_box.set_width(original_image.width)
+    image_box.set_height(original_image.height)
 
-    scaled_height = int(screen_height - cgratio * screen_height)
-    scaled_width = int(scaled_height * image_ratio)
+    print("Immagine - " + str(image_box))
+
+    scaled_box = box.Box()
+    scaled_box.set_height(
+        int(screen_box.get_height() - cgratio * screen_box.get_height())
+    )
+    scaled_box.set_width(int(screen_box.get_height() * image_box.get_ratio()))
 
     # Scala immagine
-    ScaledImage = OriImage.resize((scaled_width, scaled_height))
-    print(
-        "Immagine scalata. Larghezza: "
-        + str(scaled_width)
-        + " Altezza: "
-        + str(scaled_height)
-    )
+    ScaledImage = original_image.resize(scaled_box.cornerPoint.get_tuple())
+    print("Immagine scalata - " + str(scaled_box))
 
     EhnancedImage = ScaledImage.convert("RGBA")
 
-    BackgroudImage = OriImage.copy()
+    BackgroudImage = original_image.copy()
 
-    background_scaled_width = int(screen_width)
-    background_scaled_height = int(background_scaled_width / image_ratio)
+    background_scaled_box = box.Box()
+    background_scaled_box.set_width(screen_box.get_width())
+    background_scaled_box.set_height(
+        int(screen_box.get_width() / image_box.get_ratio())
+    )
 
     ScaledBackgroudImage = BackgroudImage.resize(
-        (background_scaled_width, background_scaled_height)
+        background_scaled_box.cornerPoint.get_tuple()
     )
-    print(
-        "Background scalata. Larghezza: "
-        + str(background_scaled_width)
-        + " Altezza: "
-        + str(background_scaled_height)
-    )
+    print("Background scalata - " + str(background_scaled_box))
 
-    if (ScaledBackgroudImage.height < screen_height) or (
-        ScaledBackgroudImage.width < screen_width
+    if (
+        ScaledBackgroudImage.height < screen_box.get_height()
+        or ScaledBackgroudImage.width < screen_box.get_width()
     ):
         print("Attenzione il background non copre tutto lo schermo")
 
     blurBackgroudImage = ScaledBackgroudImage.filter(ImageFilter.GaussianBlur(80))
 
-    BackgroudCutBox = (
-        0,
-        int((blurBackgroudImage.height - screen_height) / 2),
-        screen_width,
-        int((blurBackgroudImage.height - screen_height) / 2) + screen_height,
+    background_cut_box = box.Box()
+    background_cut_box.set_y_offset(
+        int((blurBackgroudImage.height - screen_box.get_height()) / 2)
     )
+    background_cut_box.set_width(screen_box.get_width())
+    background_cut_box.set_height(screen_box.get_height())
 
-    cutBackgroudImage = blurBackgroudImage.crop(BackgroudCutBox)
-    print(
-        "Background tagliato. Larghezza: "
-        + str(cutBackgroudImage.width)
-        + " Altezza: "
-        + str(cutBackgroudImage.height)
-    )
+    cutBackgroudImage = blurBackgroudImage.crop(background_cut_box.get_tuple())
+    print("Background tagliato - " + str(background_cut_box))
 
-    PasteImageBox = (
-        int((cutBackgroudImage.width - EhnancedImage.width) / 2),
-        int((cutBackgroudImage.height - EhnancedImage.height) / 2),
-    )
+    # TODO: usere una box
+    image_paste_box = box.Point()
+    image_paste_box.x = int((cutBackgroudImage.width - EhnancedImage.width) / 2)
+    image_paste_box.y = int((cutBackgroudImage.height - EhnancedImage.height) / 2)
 
-    aaa = makeShadow(EhnancedImage, 10, 10, (0, 0), 0xFFFFFF00, (0, 0, 0, 1))
+    # TODO: fare setting per questo
+    # aaa = makeShadow(EhnancedImage, 10, 10, (0, 0), 0xFFFFFF00, (0, 0, 0, 1))
 
     # Merge
-    cutBackgroudImage.paste(EhnancedImage, PasteImageBox)
+    cutBackgroudImage.paste(EhnancedImage, image_paste_box.get_tuple())
 
     # cutBackgroudImage.show()
     # aaa.show()
 
+    # TODO: parametrizzare cartella di uscita
     # Save blurImage
     cutBackgroudImage.save("archive/" + filename)
 
 
-def downloadImage(url):
+def download_image(url: str):
+    """_summary_
 
+    Args:
+        url (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     print("Inizio recupero immagini")
 
     job = gallery_dl.job.DownloadJob(url)
     code = job.run()
 
-    filepath = job.pathfmt.path
-    filename = job.pathfmt.filename
+    # filepath = job.pathfmt.path
+    # filename = job.pathfmt.filename
 
     print("Recupero file completato con codice: " + str(code))
 
     return job.pathfmt
 
 
-def ottieniArte():
-    x = requests.get(
-        "https://www.wikiart.org/en/App/Painting/random", allow_redirects=False
-    )
-    # print(x.status_code)
-    # x = "test"
+def ottieni_arte() -> str:
+    """_summary_
 
-    url = "https://www.wikiart.org" + x.headers.get("location")
+    Returns:
+        str: _description_
+    """
+
+    wikiart_request = requests.get(
+        "https://www.wikiart.org/en/App/Painting/random",
+        allow_redirects=False,
+        timeout=30,
+    )
+
+    url = "https://www.wikiart.org" + wikiart_request.headers.get("location")
 
     print("Nuova arte ottenuta. Url: " + url)
 
@@ -129,12 +136,19 @@ def ottieniArte():
 
 
 def makeShadow(image, iterations, border, offset, backgroundColour, shadowColour):
-    # image: base image to give a drop shadow
-    # iterations: number of times to apply the blur filter to the shadow
-    # border: border to give the image to leave space for the shadow
-    # offset: offset of the shadow as [x,y]
-    # backgroundCOlour: colour of the background
-    # shadowColour: colour of the drop shadow
+    """_summary_
+
+    Args:
+        image (_type_): base image to give a drop shadow
+        iterations (_type_): number of times to apply the blur filter to the shadow
+        border (_type_): border to give the image to leave space for the shadow
+        offset (_type_): offset of the shadow as [x,y]
+        backgroundColour (_type_): colour of the background
+        shadowColour (_type_): colour of the drop shadow
+
+    Returns:
+        _type_: _description_
+    """
 
     # Calculate the size of the shadow's image
     fullWidth = image.size[0] + abs(offset[0]) + 2 * border
@@ -164,10 +178,12 @@ def makeShadow(image, iterations, border, offset, backgroundColour, shadowColour
     return shadow
 
 
-def processDownloaded():
+def process_downloaded(screen_box: box.Box):
+    """_summary_"""
+
     dir_path = r"./gallery-dl/wikiart/*/*.*"
     res = glob.glob(dir_path)
 
     for filepath in res:
         filename = filepath.split("/")[-1]
-        processImage(filepath, filename)
+        process_image(filepath, filename, screen_box)

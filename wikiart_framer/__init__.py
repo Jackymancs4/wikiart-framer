@@ -2,6 +2,7 @@ import glob
 import gallery_dl
 import requests
 from PIL import Image, ImageFilter
+import copy
 
 from . import box
 
@@ -35,7 +36,7 @@ def process_image(filepath: str, filename: str, screen_box: box.Box) -> None:
     scaled_box.set_height(
         int(screen_box.get_height() - cgratio * screen_box.get_height())
     )
-    scaled_box.set_width(int(screen_box.get_height() * image_box.get_ratio()))
+    scaled_box.set_width(int(scaled_box.get_height() * image_box.get_ratio()))
 
     # Scala immagine
     ScaledImage = original_image.resize(scaled_box.cornerPoint.get_tuple())
@@ -186,4 +187,8 @@ def process_downloaded(screen_box: box.Box):
 
     for filepath in res:
         filename = filepath.split("/")[-1]
-        process_image(filepath, filename, screen_box)
+
+        try: 
+            process_image(filepath, filename, copy.deepcopy(screen_box))
+        except:
+            print("Errore nell'immagine " + filename)
